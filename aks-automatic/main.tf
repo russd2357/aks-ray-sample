@@ -17,7 +17,7 @@ resource "tls_private_key" "ssh_key" {
 }
 
 resource "azapi_resource" "aks_auto" {
-  type      = "Microsoft.ContainerService/managedClusters@2024-06-02-preview"
+  type      = "Microsoft.ContainerService/managedClusters@2024-10-02-preview"
   name      = "aks-${var.project_prefix}-${random_id.suffix.id}"
   parent_id = azurerm_resource_group.rg.id
   location  = var.location
@@ -52,6 +52,15 @@ resource "azapi_resource" "aks_auto" {
         }
       }
 
+      azureMonitorProfile = {
+        metrics = {
+          enabled = true
+          kubeStateMetrics = {
+            metricsAnnotationsAllowList = var.ksm_allowed_annotations
+            metricsLabelsAllowList = var.ksm_allowed_labels
+          }
+        }
+      }
     }
 
     identity = {
@@ -64,6 +73,9 @@ resource "azapi_resource" "aks_auto" {
     }
   })
 }
+
+
+
 
 data "azurerm_client_config" "current" {}
 
