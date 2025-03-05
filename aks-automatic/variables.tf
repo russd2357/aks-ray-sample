@@ -43,3 +43,13 @@ variable "username" {
   type        = string
   default     = "azureuser"
 }
+
+variable "ksm_allowed_annotations" {
+  description = "The allowed annotations for kube-state-metrics."
+  type        = string
+}
+
+variable "ksm_allowed_labels" {
+  description = "The allowed labels for kube-state-metrics."
+  type        = string
+}
