@@ -6,6 +6,9 @@ if ! az account show > /dev/null 2>&1; then
     exit 1
 fi
 
+# Initialize Terraform
+terraform init
+
 # Create a Terraform plan
 terraform plan -out main.tfplan
 
