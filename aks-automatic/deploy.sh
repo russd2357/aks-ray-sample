@@ -6,7 +6,26 @@ if ! az account show > /dev/null 2>&1; then
     exit 1
 fi
 
+# Check if Helm is installed
+if ! command -v helm &> /dev/null; then
+    echo "Helm is not installed. Please install Helm before running this script."
+    exit 1
+fi
+
+# Check if kubectl is installed
+if ! command -v kubectl &> /dev/null; then
+    echo "kubectl is not installed. Please install kubectl before running this script."
+    exit 1
+fi
+
+# Check if Terraform is installed
+if ! command -v terraform &> /dev/null; then
+    echo "Terraform is not installed. Please install Terraform before running this script."
+    exit 1
+fi
+
 # Initialize Terraform
+echo "Initializing Terraform..."
 terraform init
 
 # Create a Terraform plan
@@ -38,6 +57,18 @@ kubectl get nodes
 
 # Check Helm version
 helm version
+
+# Add FluentBit Helm repository
+helm repo add fluent https://fluent.github.io/helm-charts
+helm repo update
+
+# Install FluentBit using Helm
+helm upgrade --install fluent-bit fluent/fluent-bit
+
+if [ $? -ne 0 ]; then
+    echo "Failed to install FluentBit. Please check the logs for more details."
+    exit 1
+fi
 
 # Add the KubeRay Helm repository
 helm repo add kuberay https://ray-project.github.io/kuberay-helm/
