@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentbit-config
+data:
+  fluent-bit.conf: |
+    [INPUT]
+        Name tail
+        Path /tmp/ray/session_latest/logs/*
+        Tag ray
+        Path_Key true
+        Refresh_Interval 5
+    [FILTER]
+        Name modify
+        Match ray
+        Add POD_LABELS ${POD_LABELS}
+    [OUTPUT]
+        Name azure
+        Match *
+        Log_Type_Key $kubernetes['labels']['${POD_LABELS}']
+        Customer_ID de9b3ea9-282c-4cde-b64c-36e9a7c71a3b
+        Shared_Key e4nMWyUpf3DC1l7h/goS9uFLpDecqV1rnjwSW1uKHFROpiAu+N6C7q+8Z4y82r/eo+jTU5pVBXao0AQIaBwYaQ==
+---
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: rayjob-pytorch-mnist
+spec:
+  shutdownAfterJobFinishes: false
+  entrypoint: python ray-operator/config/samples/pytorch-mnist/ray_train_pytorch_mnist.py
+  runtimeEnvYAML: |
+    pip:
+      - torch
+      - torchvision
+    working_dir: "https://github.com/ray-project/kuberay/archive/master.zip"
+    env_vars:
+      NUM_WORKERS: "2"
+      CPUS_PER_WORKER: "2"
+
+  # rayClusterSpec specifies the RayCluster instance to be created by the RayJob controller.
+  rayClusterSpec:
+    rayVersion: '2.41.0'
+    headGroupSpec:
+      rayStartParams: {}
+      # Pod template
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: rayproject/ray:2.41.0
+              ports:
+                - containerPort: 6379
+                  name: gcs-server
+                - containerPort: 8265 # Ray dashboard
+                  name: dashboard
+                - containerPort: 10001
+                  name: client
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: "4Gi"
+                requests:
+                  cpu: "1"
+                  memory: "4Gi"
+              volumeMounts:
+              - mountPath: /tmp/ray
+                name: ray-logs
+            # Add the Fluent Bit sidecar to every pod config in the Ray Cluster
+            - name: fluentbit
+              image: fluent/fluent-bit:3.2.2
+              # Get Kubernetes metadata via downward API
+              env:
+              - name: POD_LABELS
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['ray.io/cluster']
+              # Get the Log Analytics Workspace creds saved as secrets
+              # - name: ALA_WORKSPACE_ID
+              #   valueFrom:
+              #     secretKeyRef:
+              #       name: alacreds
+              #       key: workspaceId
+              # - name: ALA_WORKSPACE_KEY
+              #   valueFrom:
+              #     secretKeyRef:
+              #       name: alacreds
+              #       key: key
+              # These resource requests for Fluent Bit should be sufficient in production.
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              volumeMounts:
+              - mountPath: /tmp/ray
+                name: ray-logs
+              - mountPath: /fluent-bit/etc/fluent-bit.conf
+                subPath: fluent-bit.conf
+                name: fluentbit-config
+          volumes:
+          - name: ray-logs
+            emptyDir: {}
+          - name: fluentbit-config
+            configMap:
+              name: fluentbit-config
+    workerGroupSpecs:
+      - replicas: 2
+        minReplicas: 1
+        maxReplicas: 5
+        groupName: small-group
+        rayStartParams: {}
+        # Pod template
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: rayproject/ray:2.41.0
+                resources:
+                  limits:
+                    cpu: "3"
+                    memory: "4Gi"
+                  requests:
+                    cpu: "3"
+                    memory: "4Gi"
+              # Add the Fluent Bit sidecar to every pod config in the Ray Cluster
+              - name: fluentbit
+                image: fluent/fluent-bit:3.2.2
+                # Get Kubernetes metadata via downward API
+                env:
+                - name: POD_LABELS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['ray.io/cluster']
+                # These resource requests for Fluent Bit should be sufficient in production.
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 128Mi
+                  limits:
+                    cpu: 100m
+                    memory: 128Mi
+                volumeMounts:
+                - mountPath: /tmp/ray
+                  name: ray-logs
+                - mountPath: /fluent-bit/etc/fluent-bit.conf
+                  subPath: fluent-bit.conf
+                  name: fluentbit-config
+            volumes:
+            - name: ray-logs
+              emptyDir: {}
+            - name: fluentbit-config
+              configMap:
+                name: fluentbit-config
