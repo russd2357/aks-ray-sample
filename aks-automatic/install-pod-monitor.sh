@@ -1,5 +1,11 @@
 #!/bin/bash
 
+#
+# TODO - This needs to be added to the deployment script
+# This script installs the PodMonitor CRD for KubeRay on AKS.
+# It assumes that the user has already logged into Azure CLI and has AKS credentials.
+# It also assumes that the user has already created an enviorment variable for the Kuberay namespace.
+
 cat <<EOF | kubectl apply -f -
 apiVersion: azmonitoring.coreos.com/v1
 kind: PodMonitor

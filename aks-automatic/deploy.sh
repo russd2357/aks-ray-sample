@@ -56,6 +56,8 @@ echo "Current Kubernetes Context: $current_context"
 kubectl get nodes
 
 # Check Helm version
+# TODO: Do we need to check the version of Helm? Probably should
+#       do this when verifying the installation of Helm.
 helm version
 
 # Add FluentBit Helm repository

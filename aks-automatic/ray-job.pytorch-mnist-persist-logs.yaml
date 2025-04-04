@@ -17,7 +17,7 @@ data:
     [OUTPUT]
         Name azure
         Match *
-        Log_Type_Key $kubernetes['labels']['${POD_LABELS}']
+        Log_Type_Key $kubernetes['labels']['ray.io/cluster']
         Customer_ID de9b3ea9-282c-4cde-b64c-36e9a7c71a3b
         Shared_Key e4nMWyUpf3DC1l7h/goS9uFLpDecqV1rnjwSW1uKHFROpiAu+N6C7q+8Z4y82r/eo+jTU5pVBXao0AQIaBwYaQ==
 ---
@@ -36,7 +36,6 @@ spec:
     env_vars:
       NUM_WORKERS: "2"
       CPUS_PER_WORKER: "2"
-
   # rayClusterSpec specifies the RayCluster instance to be created by the RayJob controller.
   rayClusterSpec:
     rayVersion: '2.41.0'
