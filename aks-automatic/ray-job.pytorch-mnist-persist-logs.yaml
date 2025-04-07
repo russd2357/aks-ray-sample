@@ -18,8 +18,8 @@ data:
         Name azure
         Match *
         Log_Type_Key $kubernetes['labels']['ray.io/cluster']
-        Customer_ID de9b3ea9-282c-4cde-b64c-36e9a7c71a3b
-        Shared_Key e4nMWyUpf3DC1l7h/goS9uFLpDecqV1rnjwSW1uKHFROpiAu+N6C7q+8Z4y82r/eo+jTU5pVBXao0AQIaBwYaQ==
+        Customer_ID add-your-workspace-id-here
+        Shared_Key add-your-workspace-shared-key-here
 ---
 apiVersion: ray.io/v1
 kind: RayJob
@@ -73,17 +73,6 @@ spec:
                 valueFrom:
                   fieldRef:
                     fieldPath: metadata.labels['ray.io/cluster']
-              # Get the Log Analytics Workspace creds saved as secrets
-              # - name: ALA_WORKSPACE_ID
-              #   valueFrom:
-              #     secretKeyRef:
-              #       name: alacreds
-              #       key: workspaceId
-              # - name: ALA_WORKSPACE_KEY
-              #   valueFrom:
-              #     secretKeyRef:
-              #       name: alacreds
-              #       key: key
               # These resource requests for Fluent Bit should be sufficient in production.
               resources:
                 requests:
