@@ -18,8 +18,8 @@ data:
         Name azure
         Match *
         Log_Type_Key $kubernetes['labels']['ray.io/cluster']
-        Customer_ID add-your-workspace-id-here
-        Shared_Key add-your-workspace-shared-key-here
+        Customer_ID ADD-WORKSPACE-ID-HERE
+        Shared_Key ADD-WORKSPACE-KEY-HERE
 ---
 apiVersion: ray.io/v1
 kind: RayJob
