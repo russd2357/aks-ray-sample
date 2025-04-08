@@ -126,6 +126,18 @@ resource "azurerm_kubernetes_cluster_node_pool" "workload" {
   depends_on = [azapi_update_resource.k8s-default-node-pool-systempool-taint]
 }
 
+resource "azurerm_log_analytics_workspace" "log_analytics" {
+  name                = "law-${var.project_prefix}-${random_string.suffix.result}"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+
+  tags = {
+    owner = var.resource_group_owner
+  }
+}
+
 resource "azurerm_monitor_workspace" "amw" {
   name                = "amon-${var.project_prefix}-${random_string.suffix.result}"
   resource_group_name = azurerm_resource_group.rg.name

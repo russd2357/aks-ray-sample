@@ -6,7 +6,26 @@ if ! az account show > /dev/null 2>&1; then
     exit 1
 fi
 
+# Check if Helm is installed
+if ! command -v helm &> /dev/null; then
+    echo "Helm is not installed. Please install Helm before running this script."
+    exit 1
+fi
+
+# Check if kubectl is installed
+if ! command -v kubectl &> /dev/null; then
+    echo "kubectl is not installed. Please install kubectl before running this script."
+    exit 1
+fi
+
+# Check if Terraform is installed
+if ! command -v terraform &> /dev/null; then
+    echo "Terraform is not installed. Please install Terraform before running this script."
+    exit 1
+fi
+
 # Initialize Terraform
+echo "Initializing Terraform..."
 terraform init
 
 # Create a Terraform plan
@@ -37,7 +56,21 @@ echo "Current Kubernetes Context: $current_context"
 kubectl get nodes
 
 # Check Helm version
+# TODO: Do we need to check the version of Helm? Probably should
+#       do this when verifying the installation of Helm.
 helm version
+
+# Add FluentBit Helm repository
+helm repo add fluent https://fluent.github.io/helm-charts
+helm repo update
+
+# Install FluentBit using Helm
+helm upgrade --install fluent-bit fluent/fluent-bit
+
+if [ $? -ne 0 ]; then
+    echo "Failed to install FluentBit. Please check the logs for more details."
+    exit 1
+fi
 
 # Add the KubeRay Helm repository
 helm repo add kuberay https://ray-project.github.io/kuberay-helm/
@@ -57,6 +90,75 @@ helm upgrade \
 
 # Output the pods in the kuberay namespace
 kubectl get pods -n $kuberay_namespace
+
+# Install pod monitors
+cat <<EOF | kubectl apply -f -
+apiVersion: azmonitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  labels:
+    release: prometheus
+  name: ray-head-monitor
+  namespace: ${kuberay_namespace}
+spec:
+  jobLabel: ray-head
+  # Only select Kubernetes Pods in the "${kuberay_namespace}" namespace.
+  namespaceSelector:
+    matchNames:
+      - ${kuberay_namespace}
+  # Only select Kubernetes Pods with "matchLabels".
+  selector:
+    matchLabels:
+      ray.io/node-type: head
+  # A list of endpoints allowed as part of this PodMonitor.
+  podMetricsEndpoints:
+    - port: metrics
+      relabelings:
+        - action: replace
+          sourceLabels:
+            - __meta_kubernetes_pod_label_ray_io_cluster
+          targetLabel: ray_io_cluster
+    - port: as-metrics # autoscaler metrics
+      relabelings:
+        - action: replace
+          sourceLabels:
+            - __meta_kubernetes_pod_label_ray_io_cluster
+          targetLabel: ray_io_cluster
+    - port: dash-metrics # dashboard metrics
+      relabelings:
+        - action: replace
+          sourceLabels:
+            - __meta_kubernetes_pod_label_ray_io_cluster
+          targetLabel: ray_io_cluster
+EOF
+
+# Create a pod monitor for the worker nodes
+cat <<EOF | kubectl apply -f -
+apiVersion: azmonitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ray-workers-monitor
+  namespace: ${kuberay_namespace}
+  labels:
+    release: prometheus
+spec:
+  jobLabel: ray-workers
+  # Only select Kubernetes Pods in the "${kuberay_namespace}" namespace.
+  namespaceSelector:
+    matchNames:
+      - ${kuberay_namespace}
+  # Only select Kubernetes Pods with "matchLabels".
+  selector:
+    matchLabels:
+      ray.io/node-type: worker
+  # A list of endpoints allowed as part of this PodMonitor.
+  podMetricsEndpoints:
+  - port: metrics
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_label_ray_io_cluster]
+      targetLabel: ray_io_cluster
+EOF
+
 
 # Download the PyTorch MNIST job YAML file
 curl -LO https://raw.githubusercontent.com/ray-project/kuberay/master/ray-operator/config/samples/pytorch-mnist/ray-job.pytorch-mnist.yaml
