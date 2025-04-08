@@ -161,10 +161,26 @@ EOF
 
 
 # Download the PyTorch MNIST job YAML file
-curl -LO https://raw.githubusercontent.com/ray-project/kuberay/master/ray-operator/config/samples/pytorch-mnist/ray-job.pytorch-mnist.yaml
+# curl -LO https://raw.githubusercontent.com/ray-project/kuberay/master/ray-operator/config/samples/pytorch-mnist/ray-job.pytorch-mnist.yaml
 
 # Train a PyTorch Model on Fashion MNIST
-kubectl apply -n $kuberay_namespace -f ray-job.pytorch-mnist.yaml
+# kubectl apply -n $kuberay_namespace -f ray-job.pytorch-mnist.yaml
+
+#
+# TODO: There is a better way to do this. I just need to figure it out, but this hack works for now.
+#
+rg_name=$(terraform output -raw resource_group_name)
+wrkspc_name=$(terraform output -raw log_analytics_workspace_name)
+wrksp_id=$(terraform output -raw log_analytics_workspace_id)
+wkrsp_key=$(az monitor log-analytics workspace get-shared-keys \
+--resource-group $rg_name \
+--workspace-name $wrkspc_name \
+--query primarySharedKey -o tsv)
+
+sed "s/ADD-WORKSPACE-ID-HERE/$wrksp_id=$(terraform output -raw log_analytics_workspace_id)
+/" ./ray-job.pytorch-mnist-persist-logs.yaml \
+| sed s"/ADD-WORKSPACE-KEY-HERE/$wkrsp_key/" - \
+| kubectl apply -n kuberay -f -
 
 # Output the pods in the kuberay namespace
 kubectl get pods -n $kuberay_namespace
