@@ -31,12 +31,14 @@ override.tf.json
 
 # Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
 # example: *tfplan*
+*tfplan*
+
 
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
 
 # Ignore lab files
-ray-job.pytorch-mnist.yaml
+*ray-job.pytorch-mnist.yaml
 *.tfplan
 *terraform.lock.hcl
